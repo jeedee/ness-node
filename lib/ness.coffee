@@ -43,6 +43,14 @@ class NModel extends Backbone.Model
 		# Send informations to the requester
 		socket.emit('get', attributes) if socket?
 	
+	# Action
+	actionRequest: (socket, action, data) ->
+		fn = @[action]
+		if typeof fn is 'function'
+			fn(data)
+		else
+			console.log "Client sent an unsupported RPC! #{action}"
+	
 	# Status sync
 	networkSync: (requester=null) ->
 		isOwner = _.isEqual(requester, @)
@@ -108,10 +116,14 @@ class NCollection extends Backbone.Collection
 		)
 		
 		@on('networkSync', (model, data) ->
-			console.log 'sync'
 			for room in _.keys(io.sockets.manager.roomClients[model.get('socket').id])
 				console.log 'send ' + data
 				io.sockets.in(room).emit('get', data)
+		)
+		
+		@on('sendEveryone', (model, type, data) ->
+			for room in _.keys(io.sockets.manager.roomClients[model.get('socket').id])
+				io.sockets.in(room).emit(type, data)
 		)
 		
 		super({}, [])
