@@ -3,10 +3,11 @@ _ = require('underscore')
 
 OWNER_ONLY = 'o'
 EVERYONE = 'e'
+
 module.exports.OWNER_ONLY = OWNER_ONLY
 module.exports.EVERYONE = EVERYONE
 
-class NModel extends Backbone.Model
+class Entity extends Backbone.Model
 	
 	# [KEY] : [SYNC: TRUE/FALSE, READ: OWNER_ONLY, WRITE: OWNER_ONLY]
 	networkedAttributes: {}
@@ -94,7 +95,7 @@ class NModel extends Backbone.Model
 		return _.has(@networkedAttributes, key)
 		
 
-class NCollection extends Backbone.Collection
+class Zone extends Backbone.Collection
 	initialize: ->
 		@name = 'town'
 		
