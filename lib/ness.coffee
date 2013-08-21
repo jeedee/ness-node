@@ -52,7 +52,9 @@ class Entity extends Backbone.Model
 	
 	# Action
 	actionRequest: (action, data) ->
-		fn = @[action]
+		action = action.charAt(0).toUpperCase() + action.slice(1)
+		
+		fn = @['action' + action]
 		if typeof fn is 'function'
 			fn(data)
 		else
