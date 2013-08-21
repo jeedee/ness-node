@@ -11,6 +11,7 @@ class Entity extends Backbone.Model
 	
 	# [KEY] : [SYNC: TRUE/FALSE, READ: OWNER_ONLY, WRITE: OWNER_ONLY]
 	networkedAttributes: {}
+	zone = null
 	
 	initialize: ->
 		super
@@ -22,16 +23,13 @@ class Entity extends Backbone.Model
 		@on('change', @_updateNetwork)
 	
 	# Networked GET/SET
-	setNetworked: (socket, attrs) ->
-		isOwner = _.isEqual(socket, @get('socket'))
-		
+	setNetworked: (attrs) ->
 		_.each(attrs, (value, key) =>
-			# TODO : VALIDATE PERMISSION
 			# TODO : FILTER N SHIT
 			@set(key, value) if value?
 		)	
 		
-	getNetworked: (socket, attrs) ->
+	getNetworked: (attrs) ->
 		isOwner = _.isEqual(socket, @get('socket'))
 		
 		attributes = {id: @get('id')}
@@ -44,8 +42,16 @@ class Entity extends Backbone.Model
 		# Send informations to the requester
 		socket.emit('get', attributes) if socket?
 	
+	# Zone management
+	join: (zone) ->
+		zone.add @
+
+	leave: ->
+		# Remove ourself the zone
+		@zone.remove @
+	
 	# Action
-	actionRequest: (socket, action, data) ->
+	actionRequest: (action, data) ->
 		fn = @[action]
 		if typeof fn is 'function'
 			fn(data)
@@ -87,7 +93,7 @@ class Entity extends Backbone.Model
 		@get('socket').emit('get', attrs[0]) if Object.keys(attrs[0]).length > 1
 		
 		# Trigger sync event
-		@trigger('networkSync', @, attrs[1]) if Object.keys(attrs[1]).length > 1
+		@zone.sendEveryone('get', attrs[1]) if Object.keys(attrs[1]).length > 1
 	
 	# Should the attribute stay in sync or not
 	_mustSync: (key) =>
@@ -97,38 +103,40 @@ class Entity extends Backbone.Model
 
 class Zone extends Backbone.Collection
 	initialize: ->
+		# TEMPORARY NAME
 		@name = 'town'
 		
-		@on('add', (model, data) =>
-			model.get('socket').join(@name)
-			
-			# Send everyone's info of this user
-			for room in _.keys(io.sockets.manager.roomClients[model.get('socket').id])
-				model.get('socket').broadcast.to(room).emit('get', model.networkSync())
-			
-			# Get sync data of nearby clients
-			for other in global.zones[@name].models
-				console.log other.get('id')
-				model.get('socket').emit('get', other.networkSync())
-		)
-		
-		@on('remove', (model, data) ->
-			model.get('socket').leave(@name)
-		)
-		
-		@on('networkSync', (model, data) ->
-			for room in _.keys(io.sockets.manager.roomClients[model.get('socket').id])
-				console.log 'send ' + data
-				io.sockets.in(room).emit('get', data)
-		)
-		
-		@on('sendEveryone', (model, type, data) ->
-			for room in _.keys(io.sockets.manager.roomClients[model.get('socket').id])
-				io.sockets.in(room).emit(type, data)
-		)
+		# Binds join and leave events
+		@on 'add', _.bind(@entityJoined, @)
+		@on 'remove', _.bind(@entityLeft, @)
 		
 		super({}, [])
-	
 
-module.exports.NModel = NModel
-module.exports.NCollection = NCollection
+	# Send everyone
+	sendEveryone: (type, data, exclude=[]) ->
+		for entity in @models
+			entity.get('socket').emit(type, data)
+	
+	# Entity events
+	entityJoined: (entity) ->
+		# Assign zone to us
+		entity.zone = @
+		
+		# Join the user to the socket.io room
+		entity.get('socket').join(@name)
+
+		# Sync this user with everyone
+		@sendEveryone('get', entity.networkSync(), [entity])
+		
+		# Get information from everyone else
+		for other in @models
+			entity.get('socket').emit('get', other.networkSync())
+		
+	entityLeft: (entity) ->
+		@sendEveryone('action', {id: 'remove', data: id: entity.get('id') })
+		
+		entity.get('socket').leave(@name)
+
+# Exports
+module.exports.Entity = Entity
+module.exports.Zone = Zone
