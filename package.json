@@ -1,0 +1,26 @@
+{
+  "name": "Ness",
+  "version": "1.0.0",
+  "description": "![Ness](https://dl.dropboxusercontent.com/u/4910851/NessSprite.gif) Ness  ====",
+  "main": "index.coffee",
+  "scripts": {
+    "test": "mocha --compilers coffee:coffee-script"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jeedee/ness"
+  },
+  "author": "Jeedee",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jeedee/ness/issues"
+  },
+  "homepage": "https://github.com/jeedee/ness",
+  "dependencies": {
+    "ws": "~0.4.31",
+    "backbone": "~1.1.0",
+    "underscore": "~1.5.2",
+    "mocha": "~1.17.0",
+    "coffee-script": "~1.6.3"
+  }
+}
