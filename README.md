@@ -2,4 +2,4 @@
 ====
 
 
-SockJS-based network synchronization library
+WS-based network objects synchronization library

@@ -1,7 +1,8 @@
 Backbone = require('backbone')
 _ = require('underscore')
+ness = require('./ness')
 
-class Zone extends Backbone.Collection
+class Room extends Backbone.Collection
 	initialize: ->
 		# TEMPORARY NAME
 		@name = 'town'
@@ -10,31 +11,34 @@ class Zone extends Backbone.Collection
 		@on 'add', _.bind(@entityJoined, @)
 		@on 'remove', _.bind(@entityLeft, @)
 		
+		# Add to the ness rooms object
+		ness.Rooms[@name] = @
+		
 		super({}, [])
 
 	# Send everyone
 	sendEveryone: (type, data, exclude=[]) ->
+		console.log "Data is"
+		console.log data
 		for entity in @models
-			entity.get('socket').emit(type, data)
+			entity.sendOwner(type, data) unless entity in exclude
 	
 	# Entity events
 	entityJoined: (entity) ->
-		# Assign zone to us
-		entity.zone = @
+		# Assign room to the entity
+		entity.room = @
 		
-		# Join the user to the socket.io room
-		entity.get('socket').join(@name)
-
 		# Sync this user with everyone
 		@sendEveryone('get', entity.networkSync(), [entity])
 		
-		# Get information from everyone else
+		# Get information about everyone else
 		for other in @models
-			entity.get('socket').emit('get', other.networkSync())
+			entity.sendOwner('get', other.networkSync()) unless other is entity
+		
+		console.log "#{@models.length} entity in #{@name}"
 		
 	entityLeft: (entity) ->
 		@sendEveryone('action', {id: 'remove', data: id: entity.get('id') })
 		
-		entity.get('socket').leave(@name)
 
-
+module.exports = Room

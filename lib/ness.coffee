@@ -1,22 +1,19 @@
-module.exports = (port=8080) ->
-	clients = []
-	
-	OWNER_ONLY = 'o'
-	EVERYONE = 'e'
+# Clients
+module.exports.Clients = []
 
-	module.exports.OWNER_ONLY = OWNER_ONLY
-	module.exports.EVERYONE = EVERYONE
-
-	# Server
-	server = new (require('ws').Server)({port: 8080});
-	
-	# Handle new connection
-	server.on 'connection', (client) ->
-		clients << client
-	
-	# Exports
-	return {
-		Server: server
-		Entity: require('./Entity')
-		Zone: require('./Zone')
-	}
+# Rooms
+module.exports.Rooms = {}
+		
+# Entity and Zone base classes
+module.exports.Entity = require('./Entity')
+module.exports.Room = require('./Room')
+		
+# Models to be used for new clients & zones
+module.exports.Models = {Client: require('./Entity'), Room: require('./Room')}
+		
+# Sync constants
+module.exports.OWNER_ONLY = 0
+module.exports.EVERYONE = 1
+		
+# Server itself
+module.exports.Server = require('./Server')

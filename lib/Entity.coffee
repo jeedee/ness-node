@@ -1,20 +1,30 @@
 Backbone = require('backbone')
 _ = require('underscore')
+ness = require('./ness')
 
 class Entity extends Backbone.Model
+	# Current room
+	room = null
 	
 	# [KEY] : [SYNC: TRUE/FALSE, READ: OWNER_ONLY, WRITE: OWNER_ONLY]
 	networkedAttributes: {}
-	zone = null
 	
 	initialize: ->
 		super
 		
-		# Send the UID to the owner
-		@get('socket').emit('self', {id: @get('id')})
+		# Generate a UUID
+		@set('id', require('hat')(64))
+		
+		# Send the UUID to the owner
+		@sendOwner('id', @get('id'))
 		
 		# Bind network update on change
 		@on('change', @_updateNetwork)
+	
+	sendOwner: (id, data) ->
+		message = {}
+		message[id] = data
+		@get('socket').send JSON.stringify message
 	
 	# Networked GET/SET
 	setNetworked: (attrs) ->
@@ -23,8 +33,8 @@ class Entity extends Backbone.Model
 			@set(key, value) if value?
 		)	
 		
-	getNetworked: (attrs) ->
-		isOwner = _.isEqual(socket, @get('socket'))
+	getNetworked: (requester, attrs) ->
+		isOwner = _.isEqual(requester, @)
 		
 		attributes = {id: @get('id')}
 		
@@ -34,15 +44,16 @@ class Entity extends Backbone.Model
 		)
 		
 		# Send informations to the requester
-		socket.emit('get', attributes) if socket?
+		requester.sendOwner('get', attributes) if requester.get('socket')?
 	
-	# Zone management
-	join: (zone) ->
-		zone.add @
+	# Room management
+	join: (roomName) ->
+		console.log 'join this thang'
+		ness.Rooms[roomName].add @
 
 	leave: ->
 		# Remove ourself the zone
-		@zone.remove @
+		@room.remove @
 	
 	# Action
 	actionRequest: (action, data) ->
@@ -56,11 +67,13 @@ class Entity extends Backbone.Model
 	
 	# Status sync
 	networkSync: (requester=null) ->
+		# Is owner?
 		isOwner = _.isEqual(requester, @)
 		
+		# Get the proper attributes
 		attrs = @_filterNetworked(@networkedAttributes)
-
-		if isOwner then attrs[0] else attrs[1]
+		
+		if isOwner then _.extend(attrs[0], attrs[1]) else attrs[1]
 
 	# Private methods
 	
@@ -72,11 +85,16 @@ class Entity extends Backbone.Model
 		
 		_.each(attrs, (value, key) =>
 			if @_mustSync(key)
-				# Store attributes readable by owner only
-				attributesOwner[key] = @get(key) if value.read == OWNER_ONLY
+				console.log value.read
 				
-				attributes[key] = @get(key) if value.read != OWNER_ONLY
+				# Store attributes readable by owner only
+				attributesOwner[key] = @get(key) if value.read == ness.OWNER_ONLY
+				
+				# Store attributes readable by everybody
+				attributes[key] = @get(key) if value.read != ness.OWNER_ONLY
 		)
+		
+		console.log attributesOwner
 			
 		return [attributesOwner, attributes];
 	
@@ -86,14 +104,14 @@ class Entity extends Backbone.Model
 		attrs = @_filterNetworked(model.changedAttributes())
 		
 		# Update the owner
-		@get('socket').emit('get', attrs[0]) if Object.keys(attrs[0]).length > 1
+		@sendOwner('get', attrs[0]) if Object.keys(attrs[0]).length > 1
 		
 		# Trigger sync event
-		@zone.sendEveryone('get', attrs[1]) if Object.keys(attrs[1]).length > 1
+		@room.sendEveryone('get', attrs[1]) if Object.keys(attrs[1]).length > 1 && @zone?
 	
 	# Should the attribute stay in sync or not
 	_mustSync: (key) =>
 		# TODO: CACHE SYNCABLES ON MODEL INIT
 		return _.has(@networkedAttributes, key)
 		
-
+module.exports = Entity

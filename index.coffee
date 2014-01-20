@@ -1,1 +1,1 @@
-module.exports = require('./lib/ness')()
+module.exports = require('./lib/Ness')
