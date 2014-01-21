@@ -18,16 +18,15 @@ class NessServer extends require('ws').Server
 			socket.on 'message', (message) ->
 				try
 					message = JSON.parse(message)
+					socket.entity.parseMessage(message.id, message.data)
 				catch error
 					console.log 'Invalid message, will close socket.'
 					socket.close()
 					return
-				
-				console.log message
-				socket.entity.parseMessage(message.id, message.data)
 			
 			# Add close event
 			socket.on 'close', ->
+				@.entity.onClose()
 				index = ness.Clients.indexOf(@)
 				ness.Clients.splice(index) unless index is -1
 		

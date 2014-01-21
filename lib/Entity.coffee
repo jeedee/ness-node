@@ -21,6 +21,10 @@ class Entity extends Backbone.Model
 		# Bind network update on change
 		@on('change', @_updateNetwork)
 	
+	onClose: ->
+		# Remove the room
+		@leave()
+	
 	sendOwner: (id, data) ->
 		message = {}
 		message[id] = data
