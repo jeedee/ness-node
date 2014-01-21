@@ -28,27 +28,39 @@ class Entity extends Backbone.Model
 	
 	# Networked GET/SET
 	setNetworked: (attrs) ->
+		kv = {}
+		
 		_.each(attrs, (value, key) =>
 			# TODO : FILTER N SHIT
-			@set(key, value) if value?
-		)	
+			kv[key] = value if value?
+		)
+		
+		@set(kv)
 		
 	getNetworked: (requester, attrs) ->
 		isOwner = _.isEqual(requester, @)
 		
+		# Set to the id of the entity
 		attributes = {id: @get('id')}
 		
-		_.each(attrs, (value, key) =>
+		# Parse JSON if not an array
+		try
+			attrs = JSON.parse(attrs) unless attrs instanceof Array
+		catch
+			return {}
+		
+		for key in attrs
 			# TODO : VALIDATE PERMISSION
 			attributes[key] = @get(key)
-		)
 		
 		# Send informations to the requester
 		requester.sendOwner('get', attributes) if requester.get('socket')?
 	
 	# Room management
 	join: (roomName) ->
-		console.log 'join this thang'
+		# Remove if already in a room
+		@leave() if @room?
+		
 		ness.Rooms[roomName].add @
 
 	leave: ->
@@ -56,17 +68,24 @@ class Entity extends Backbone.Model
 		@room.remove @
 	
 	# Action
-	actionRequest: (action, data) ->
-		action = action.charAt(0).toUpperCase() + action.slice(1)
+	parseMessage: (action, data) ->
+		switch action
+			when 'set' then @setNetworked(data)
+			when 'get' then @getNetworked(@, data)
+			when 'rpc' then @runRPC(data)
 		
-		fn = @['action' + action]
+	
+	runRPC: (data) ->
+		action = data.action.charAt(0).toUpperCase() + data.action.slice(1)
+		
+		fn = @['rpc' + action]
 		if typeof fn is 'function'
 			fn(data)
 		else
-			console.log "Client sent an unsupported RPC! #{action}"
+			console.log "Client sent an unsupported RPC! [#{action}]"
 	
-	# Status sync
-	networkSync: (requester=null) ->
+	# Status sync -- Overrides backbone sync
+	sync: (requester=null) ->
 		# Is owner?
 		isOwner = _.isEqual(requester, @)
 		
@@ -85,16 +104,12 @@ class Entity extends Backbone.Model
 		
 		_.each(attrs, (value, key) =>
 			if @_mustSync(key)
-				console.log value.read
-				
 				# Store attributes readable by owner only
 				attributesOwner[key] = @get(key) if value.read == ness.OWNER_ONLY
 				
 				# Store attributes readable by everybody
 				attributes[key] = @get(key) if value.read != ness.OWNER_ONLY
 		)
-		
-		console.log attributesOwner
 			
 		return [attributesOwner, attributes];
 	
@@ -106,8 +121,8 @@ class Entity extends Backbone.Model
 		# Update the owner
 		@sendOwner('get', attrs[0]) if Object.keys(attrs[0]).length > 1
 		
-		# Trigger sync event
-		@room.sendEveryone('get', attrs[1]) if Object.keys(attrs[1]).length > 1 && @zone?
+		# Send the new attributes to everybody
+		@room.sendEveryone('get', attrs[1]) if Object.keys(attrs[1]).length > 1 && @room?
 	
 	# Should the attribute stay in sync or not
 	_mustSync: (key) =>

@@ -18,8 +18,6 @@ class Room extends Backbone.Collection
 
 	# Send everyone
 	sendEveryone: (type, data, exclude=[]) ->
-		console.log "Data is"
-		console.log data
 		for entity in @models
 			entity.sendOwner(type, data) unless entity in exclude
 	
@@ -29,11 +27,11 @@ class Room extends Backbone.Collection
 		entity.room = @
 		
 		# Sync this user with everyone
-		@sendEveryone('get', entity.networkSync(), [entity])
+		@sendEveryone('get', entity.sync(), [entity])
 		
 		# Get information about everyone else
 		for other in @models
-			entity.sendOwner('get', other.networkSync()) unless other is entity
+			entity.sendOwner('get', other.sync()) unless other is entity
 		
 		console.log "#{@models.length} entity in #{@name}"
 		

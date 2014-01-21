@@ -10,8 +10,21 @@ class NessServer extends require('ws').Server
 		Server.on 'connection', (socket) ->
 			# Create the object
 			socket.entity = new (ness.Models.Client)({socket: socket})
+			
 			# Add clients
 			ness.Clients.push socket
+			
+			# Messages
+			socket.on 'message', (message) ->
+				try
+					message = JSON.parse(message)
+				catch error
+					console.log 'Invalid message, will close socket.'
+					socket.close()
+					return
+				
+				console.log message
+				socket.entity.parseMessage(message.id, message.data)
 			
 			# Add close event
 			socket.on 'close', ->
