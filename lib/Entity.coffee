@@ -19,7 +19,7 @@ class Entity extends Backbone.Model
 		@sendOwner('id', @get('id'))
 		
 		# Bind network update on change
-		@on('change', @_updateNetwork)
+		@on('change', @updatePeers)
 	
 	onClose: ->
 		# Remove the room
@@ -30,7 +30,7 @@ class Entity extends Backbone.Model
 		message[id] = data
 		@get('socket').send JSON.stringify message
 	
-	# Networked GET/SET
+	# Set data from a networked client (owner)
 	setNetworked: (attrs) ->
 		kv = {}
 		
@@ -40,7 +40,8 @@ class Entity extends Backbone.Model
 		)
 		
 		@set(kv)
-		
+	
+	# Get data from a networked client
 	getNetworked: (requester, attrs) ->
 		isOwner = _.isEqual(requester, @)
 		
@@ -71,14 +72,14 @@ class Entity extends Backbone.Model
 		# Remove ourself the zone
 		@room.remove @
 	
-	# Action
+	# Parse an incoming message from this entity
 	parseMessage: (action, data) ->
 		switch action
 			when 'set' then @setNetworked(data)
 			when 'get' then @getNetworked(@, data)
 			when 'rpc' then @runRPC(data)
 		
-	
+	# Run an RPC on this entity. It must have the correct method prefix (rpc)
 	runRPC: (data) ->
 		action = data.action.charAt(0).toUpperCase() + data.action.slice(1)
 		
@@ -94,20 +95,20 @@ class Entity extends Backbone.Model
 		isOwner = _.isEqual(requester, @)
 		
 		# Get the proper attributes
-		attrs = @_filterNetworked(@networkedAttributes)
+		attrs = @filterNetworked(@networkedAttributes)
 		
 		if isOwner then _.extend(attrs[0], attrs[1]) else attrs[1]
 
 	# Private methods
 	
 	# Sort attributes by person to send it to
-	_filterNetworked: (attrs) ->
+	filterNetworked: (attrs) ->
 		# Attributes to send out to everyone
 		attributes = {id: @get('id')}
 		attributesOwner = {id: @get('id')}
 		
 		_.each(attrs, (value, key) =>
-			if @_mustSync(key)
+			if @mustSync(key)
 				# Store attributes readable by owner only
 				attributesOwner[key] = @get(key) if value.read == ness.OWNER_ONLY
 				
@@ -118,9 +119,9 @@ class Entity extends Backbone.Model
 		return [attributesOwner, attributes];
 	
 	# Send relevant updates to concerned parties
-	_updateNetwork: (model, options) =>
+	updatePeers: (model, options) =>
 		# Fetch changed attributes that requires sync
-		attrs = @_filterNetworked(model.changedAttributes())
+		attrs = @filterNetworked(model.changedAttributes())
 		
 		# Update the owner
 		@sendOwner('get', attrs[0]) if Object.keys(attrs[0]).length > 1
@@ -129,7 +130,7 @@ class Entity extends Backbone.Model
 		@room.sendEveryone('get', attrs[1]) if Object.keys(attrs[1]).length > 1 && @room?
 	
 	# Should the attribute stay in sync or not
-	_mustSync: (key) =>
+	mustSync: (key) =>
 		# TODO: CACHE SYNCABLES ON MODEL INIT
 		return _.has(@networkedAttributes, key)
 		

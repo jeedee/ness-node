@@ -36,7 +36,7 @@ class Room extends Backbone.Collection
 		console.log "#{@models.length} entity in #{@name}"
 		
 	entityLeft: (entity) ->
-		@sendEveryone('action', {id: 'remove', data: id: entity.get('id') })
+		@sendEveryone('rpc', {id: 'remove', data: id: entity.get('id') })
 		
 
 module.exports = Room
