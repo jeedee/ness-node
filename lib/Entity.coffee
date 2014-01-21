@@ -16,7 +16,7 @@ class Entity extends Backbone.Model
 		@set('id', require('hat')(64))
 		
 		# Send the UUID to the owner
-		@sendOwner('id', @get('id'))
+		@sendOwner('owner', {id: @get('id')})
 		
 		# Bind network update on change
 		@on('change', @updatePeers)
@@ -25,9 +25,11 @@ class Entity extends Backbone.Model
 		# Remove the room
 		@leave()
 	
+	# Send message
 	sendOwner: (id, data) ->
 		message = {}
-		message[id] = data
+		message['id'] = id
+		message['data'] = data
 		@get('socket').send JSON.stringify message
 	
 	# Set data from a networked client (owner)
