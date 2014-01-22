@@ -26,17 +26,20 @@ class Room extends Backbone.Collection
 		# Assign room to the entity
 		entity.room = @
 		
+		# Send "create" to the entity
+		entity.sendOwner(ness.CREATE, entity.create(entity))
+		
 		# Sync this user with everyone
-		@sendEveryone('get', entity.sync(), [entity])
+		@sendEveryone(ness.CREATE, entity.create(), [entity])
 		
 		# Get information about everyone else
 		for other in @models
-			entity.sendOwner('get', other.sync()) unless other is entity
+			entity.sendOwner(ness.CREATE, other.create()) unless other is entity
 		
 		console.log "#{@models.length} entity in #{@name}"
 		
 	entityLeft: (entity) ->
-		@sendEveryone('rpc', {id: 'remove', data: id: entity.get('id') })
+		@sendEveryone(ness.DELETE, entity.delete())
 		
 
 module.exports = Room

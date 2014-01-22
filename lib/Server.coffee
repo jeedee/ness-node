@@ -18,7 +18,7 @@ class NessServer extends require('ws').Server
 			socket.on 'message', (message) ->
 				try
 					message = JSON.parse(message)
-					socket.entity.parseMessage(message.id, message.data)
+					socket.entity.parseMessage(message.op, message.data)
 				catch error
 					console.log 'Invalid message, will close socket.'
 					socket.close()
