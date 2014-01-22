@@ -79,13 +79,26 @@ class Entity extends Backbone.Model
 	
 	# Run an RPC on this entity. It must have the correct method prefix (rpc)
 	execute: (data) ->
-		method= data.method.charAt(0).toUpperCase() + data.method.slice(1)
+		# Parse method and parameters
+		method = data.method.charAt(0).toUpperCase() + data.method.slice(1)
+		parameters = data.parameters
 		
+		# Check if the method exists
 		fn = @['__' + method]
 		if typeof fn is 'function'
-			fn(data)
+			# Invoke method with params
+			fn(parameters...)
 		else
 			console.log "Client sent an unsupported RPC! [#{method}]"
+	
+	remoteExecute: (method, parameters...) ->
+		message = {}
+		message['method'] = method
+		message['id'] = @get('id')
+		#message['parameters'] = "[\"#{parameters.join("\",\"")}\"]"
+		message['parameters'] = parameters
+		
+		return message
 	
 	# Room management
 	join: (roomName) ->
@@ -106,7 +119,7 @@ class Entity extends Backbone.Model
 			when 'r' then @read(@, data)
 			when 'u' then @update(@, data)
 			# d
-			when 'x' then @execute(data)
+			when 'e' then @execute(data)
 	
 	# Private methods
 	
@@ -133,10 +146,10 @@ class Entity extends Backbone.Model
 		attrs = @filterNetworked(model.changedAttributes())
 		
 		# Update the owner
-		@sendOwner(NESS.UPDATE, attrs[0]) if Object.keys(attrs[0]).length > 1
+		@sendOwner(ness.UPDATE, attrs[0]) if Object.keys(attrs[0]).length > 1
 		
 		# Send the new attributes to everybody
-		@room.sendEveryone(NESS.UPDATE, attrs[1]) if Object.keys(attrs[1]).length > 1 && @room?
+		@room.sendEveryone(ness.UPDATE, attrs[1]) if Object.keys(attrs[1]).length > 1 && @room?
 	
 	# Should the attribute stay in sync or not
 	mustSync: (key) =>

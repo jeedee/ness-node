@@ -21,6 +21,7 @@ class NessServer extends require('ws').Server
 					socket.entity.parseMessage(message.op, message.data)
 				catch error
 					console.log 'Invalid message, will close socket.'
+					console.log "Error was #{error}"
 					socket.close()
 					return
 			
